@@ -5,9 +5,9 @@ Build Encoder
 import oneflow as flow
 import oneflow.typing as tp
 import numpy as np
-from EncoderLayer import EncoderLayer
-from embedding_layer import EmbeddingLayer
-from new_positional_layer import positional_encoding
+from oneflow_transformer.model.EncoderLayer import EncoderLayer
+from oneflow_transformer.model.embedding_layer import EmbeddingLayer
+from oneflow_transformer.model.new_positional_layer import positional_encoding
 
 
 class Encoder(object):

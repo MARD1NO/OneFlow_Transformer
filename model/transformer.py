@@ -4,9 +4,9 @@ Build Transformer
 """
 import oneflow as flow
 import oneflow.typing as tp
-from Encoder import Encoder
-from Decoder import Decoder
-from new_positional_layer import positional_encoding
+from oneflow_transformer.model.Encoder import Encoder
+from oneflow_transformer.model.Decoder import Decoder
+from oneflow_transformer.model.new_positional_layer import positional_encoding
 import numpy as np
 
 

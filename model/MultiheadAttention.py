@@ -3,7 +3,7 @@ author: zzk
 Build MultiHeadAttention Layer
 """
 
-from attention import scaled_dot_product_attention
+from oneflow_transformer.model.attention import scaled_dot_product_attention
 import oneflow as flow
 import oneflow.typing as tp
 from typing import Tuple

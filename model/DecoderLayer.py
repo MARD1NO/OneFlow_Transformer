@@ -5,8 +5,8 @@ Build DecoderLayer
 import oneflow as flow
 import oneflow.typing as tp
 import numpy as np
-from MultiheadAttention import MultiheadAttention
-from positionwiseFeedForward import positionwiseFeedForward
+from oneflow_transformer.model.MultiheadAttention import MultiheadAttention
+from oneflow_transformer.model.positionwiseFeedForward import positionwiseFeedForward
 
 
 class DecoderLayer(object):
