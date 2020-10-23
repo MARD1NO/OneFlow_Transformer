@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import argparse
 import os
+import shutil
 import random
 import sys
 import tarfile
@@ -304,7 +305,7 @@ def encode_and_save_files(
         # Pack length
         length = struct.pack("q", features_length)
 
-        # Write length and serilized Bytes Feature
+        # Write length and serialized Bytes Feature
         writers[shard].write(length)
         writers[shard].write(serilized_bytes)
 
@@ -364,6 +365,16 @@ def shuffle_records(fname, dataset_dir, data_part_num):
             f.write(feature)  # Write Feature
 
     os.remove(tmp_fname)
+
+
+def move_records(fname, dataset_dir, data_part_num):
+    """Move records to the specified Directory."""
+    print("Move records in file %s" % fname)
+
+    final_filename = os.path.join(dataset_dir, "part-{}".format(data_part_num))
+    shutil.move(fname, final_filename)
+
+    print("Move File successfully! New file is in {}".format(final_filename))
 
 
 def OneFlow_int64_feature(value):
@@ -467,7 +478,7 @@ def main(unused_argv):
         shuffle_records(fname, os.path.join(FLAGS.OFRecord_dir, "train"), num)
 
     for num, fname in enumerate(eval_ofrecord_files):
-        shuffle_records(fname, os.path.join(FLAGS.OFRecord_dir, "eval"), num)
+        move_records(fname, os.path.join(FLAGS.OFRecord_dir, "eval"), num)
 
 
 if __name__ == "__main__":
