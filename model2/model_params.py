@@ -16,7 +16,7 @@ class TransformerBaseParams(object):
     filter_size = 2048  # Inner layer dimensionality in the feedforward network.
 
     # Dropout values (only used when training)
-    layer_postprocess_dropout = 0.1
+    layer_postprocess_dropout = 0.1 # IN Model We just 1 - dropout. It means We use drop
     attention_dropout = 0.1
     relu_dropout = 0.1
 
