@@ -6,147 +6,58 @@ import oneflow as flow
 import oneflow.typing as tp
 from oneflow_transformer.model.Encoder import Encoder
 from oneflow_transformer.model.Decoder import Decoder
-from oneflow_transformer.model.new_positional_layer import positional_encoding
 import numpy as np
 
 
-def transformer(input_tensor,
-                target_tensor,
-                encoder_pos_encoding,
-                decoder_pos_encoding,
-                training,
-                enc_padding_mask,
-                look_ahead_mask,
-                dec_padding_mask,
-                num_layers,
-                d_model,
-                num_heads,
-                dff,
-                input_vocab_size,
-                target_vocab_size,
-                pe_input,
-                pe_target,
-                rate=0.1):
-    """
-    The params about input
-    :param input_tensor: The input tensor
-    :param target_tensor: The target tensor
-    :param training: Whether training
-    :param enc_padding_mask: The encoder padding mask
-    :param look_ahead_mask: The look ahead mask
-    :param dec_padding_mask: The decoder padding mask
+class Transformer:
+    def __init__(self, num_layers, d_model, num_heads, dff,
+                 input_vocab_size, target_vocab_size, pe_input, pe_target, rate=0.1):
+        self.encoder = Encoder(num_layers, d_model, num_heads, dff, input_vocab_size, pe_input, rate)
+        self.decoder = Decoder(num_layers, d_model, num_heads, dff, target_vocab_size, pe_target, rate)
+        # self.final_layer = Dense(target_vocab_size)
+        self.target_vocab_size = target_vocab_size
+        self.name = "Transformer"
 
-    The params about Encoder and Decoder
-    :param num_layers: The numbers of layers.
-    :param d_model: The dims of model
-    :param num_heads: The numbers of head
-    :param dff: The dims of FFN
-    :param input_vocab_size: The input vocab size
-    :param target_vocab_size: The target vocab size
-    :param pe_input: The position encode input
-    :param pe_target: The position encode target
-    :param rate: The dropout rate
-    :return:
-    """
+    def __call__(self, inp, tar, training, enc_padding_mask,
+                 look_ahead_mask, dec_padding_mask):
+        with flow.scope.namespace(self.name + "_Encoder"):
+            enc_output = self.encoder(inp, training, enc_padding_mask)  # (batch_size, inp_seq_len, d_model)
 
-    # # The positional encoding for Encoder
-    # encoder_pos_encoding = positional_encoding(pe_input, d_model)
-    # # The positional encoding for Decoder
-    # decoder_pos_encoding = positional_encoding(pe_target, d_model)
+        with flow.scope.namespace(self.name + "_Decoder"):
+            # dec_output.shape == (batch_size, tar_seq_len, d_model)
+            dec_output, attention_weights = self.decoder(
+                tar, enc_output, training, look_ahead_mask, dec_padding_mask)
 
-    # Build Encoder
-    encoder = Encoder(num_layers=num_layers,
-                      d_model=d_model,
-                      num_heads=num_heads,
-                      dff=dff,
-                      input_vocab_size=input_vocab_size,
-                      maximum_position_encoding=pe_input,
-                      rate=rate)
-    # Build Decoder
-    decoder = Decoder(num_layers=num_layers,
-                      d_model=d_model,
-                      num_heads=num_heads,
-                      dff=dff,
-                      target_vocab_size=target_vocab_size,
-                      maximum_position_encoding=pe_target,
-                      rate=rate)
+        # (batch_size, tar_seq_len, target_vocab_size)
+        final_output = flow.layers.dense(dec_output, units=self.target_vocab_size, name=self.name + "_final_layer")
 
-    # Do the forward
-    with flow.scope.namespace("Encoder output"):
-        enc_output = encoder(x=input_tensor,
-                             pos_encoding=encoder_pos_encoding,
-                             training=training,
-                             mask=enc_padding_mask)
-
-    with flow.scope.namespace("Decoder output"):
-        dec_output, attention_weights = decoder(x=target_tensor,
-                                                pos_encoding=decoder_pos_encoding,
-                                                enc_output=enc_output,
-                                                training=training,
-                                                look_ahead_mask=look_ahead_mask,
-                                                padding_mask=dec_padding_mask)
-    with flow.scope.namespace("Final output"):
-        final_output = flow.layers.dense(inputs=dec_output,
-                                         units=target_vocab_size,
-                                         name="final_dense")
-    return final_output, attention_weights
+        return final_output, attention_weights
 
 
-# test
-def test(training,
-         enc_padding_mask,
-         look_ahead_mask,
-         dec_padding_mask,
-         num_layers,
-         d_model,
-         num_heads,
-         dff,
-         input_vocab_size,
-         target_vocab_size,
-         pe_input,
-         pe_target):
-
-    temp_input = np.ones(shape=(64, 38), dtype=np.int64)
-    print(temp_input.shape)
-
-    temp_output = np.ones(shape=(64, 36), dtype=np.int64)
-    print(temp_output.shape)
-
-    pos_en = positional_encoding(pe_input, d_model)
-    print(pos_en.shape)
-
-    pos_de = positional_encoding(pe_target, d_model)
-    print(pos_de.shape)
-
-
-
-    @flow.global_function()
-    def testdecoder(x: tp.Numpy.Placeholder(shape=temp_input.shape, dtype=flow.int64),
-                    y: tp.Numpy.Placeholder(shape=temp_output.shape, dtype=flow.int64),
-                    pos_encode: tp.Numpy.Placeholder(shape=pos_en.shape, dtype=flow.float32),
-                    pos_decode: tp.Numpy.Placeholder(shape=pos_de.shape, dtype=flow.float32)) -> tp.Numpy:
-        with flow.scope.namespace("transformer"):
-            out, _ = transformer(x, y, pos_encode, pos_decode, training,
-                                 enc_padding_mask, look_ahead_mask, dec_padding_mask,
-                                 num_layers, d_model, num_heads, dff,
-                                 input_vocab_size, target_vocab_size,
-                                 pe_input, pe_target)
-
-        return out
-
-    return testdecoder(temp_input, temp_output, pos_en, pos_de)
-
-
-out = test(training=False,
-           enc_padding_mask=None,
-           look_ahead_mask=None,
-           dec_padding_mask=None,
-           num_layers=6,
-           d_model=512,
-           num_heads=8,
-           dff=2048,
-           input_vocab_size=8500,
-           target_vocab_size=8000,
-           pe_input=10000,
-           pe_target=6000)
-print(out.shape)
+# if __name__ == "__main__":
+#     @flow.global_function(type="train")
+#     def test_transformer(x: tp.Numpy.Placeholder(shape=(64, 62), dtype=flow.int64),
+#                          y: tp.Numpy.Placeholder(shape=(64, 26), dtype=flow.int64)):
+#         sample_transformer = Transformer(
+#             num_layers=2, d_model=512, num_heads=8, dff=2048,
+#             input_vocab_size=8500, target_vocab_size=8000,
+#             pe_input=10000, pe_target=6000)
+#
+#         fn_out, _ = sample_transformer(x, y, training=False,
+#                                        enc_padding_mask=None,
+#                                        look_ahead_mask=None,
+#                                        dec_padding_mask=None)
+#         x_var = flow.get_variable(shape=(64, 26, 8000), dtype=flow.float32,
+#                                   name="x_var", initializer=flow.random_normal_initializer())
+#         loss = x_var + fn_out
+#         with flow.scope.placement("gpu", "0:0"):
+#             flow.optimizer.SGD(
+#                 flow.optimizer.PiecewiseConsntScheduler([], [1e-3]), momentum=0
+#             ).minimize(loss)
+#         print("Final out shape is: ", fn_out.shape)  # (batch_size, tar_seq_len, target_vocab_size)
+#
+#
+#     temp_input = np.ones((64, 62), dtype=np.int64)
+#     temp_target = np.ones((64, 26), dtype=np.int64)
+#
+#     test_transformer(temp_input, temp_target)

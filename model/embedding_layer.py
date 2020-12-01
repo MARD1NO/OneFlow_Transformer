@@ -31,17 +31,26 @@ def EmbeddingLayer(input_ids_blob,
 
 
 # # Test
-# @flow.global_function()
-# def test_Embedding(x: tp.Numpy.Placeholder(shape=(1, 4), dtype=flow.int32)) -> tp.Numpy:
-#     out = EmbeddingLayer(x, 10, 3)
-#     return out
-#
-#
-# check = flow.train.CheckPoint()
-# check.init()
-#
-# import numpy as np
-#
-# x = np.array([[0, 2, 0, 5]]).astype(np.int32)
-# out = test_Embedding(x)
-# print(out)
+if __name__ == "__main__":
+    @flow.global_function()
+    def test_Embedding(x: tp.Numpy.Placeholder(shape=(64, 62), dtype=flow.int32)) -> tp.Numpy:
+        out = EmbeddingLayer(x, 8500, 512)
+        x = flow.get_variable(
+            name="x",
+            shape=(64, 62, 1),
+            dtype=flow.float32,
+            initializer=flow.ones_initializer(),
+        )
+
+        return x * out
+
+
+    check = flow.train.CheckPoint()
+    check.init()
+
+    import numpy as np
+
+    x = np.random.randint(0, 50, size=64*62, dtype=np.int32).reshape(64, 62)
+    print(x)
+    out = test_Embedding(x)
+    print(out.shape)

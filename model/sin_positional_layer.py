@@ -3,69 +3,108 @@ author: zzk
 
 The sin Positional Encoder
 
-TODO: Depreciated
-
 """
 import oneflow as flow
 import oneflow.typing as tp
 import numpy as np
-import math
 
 
-def positionalEncoder(x, d_model, dropout, max_len=5000, name="Positional_"):
+def get_angles(pos, i, d_model):
     """
-    The positional Encoder Layer
-    :param x: The input Blob.
-    :param d_model: The dim of model.
-    :param max_len: The max length of sequence.
-    :param dropout: The dropout rate.
+    Compute angles
+
+    The equation is  1 / 10000^(2i / d_model)
+    :param pos: The position dims, shape=(position, 1)
+    :param i: The d_model index, shape = (1, d_model)
+    :param d_model: The hidden dims, int value
     :return:
     """
-    pe = np.zeros(shape=(max_len, d_model), dtype=np.float32)
+    # Get constant value as d_model
+    d_model_constant = flow.constant(d_model, dtype=flow.float32, shape=(1,), name="One_constant")
 
-    position = np.arange(0, max_len)
-    position = np.expand_dims(position, 1)
-    div_term = np.exp(np.arange(0, d_model, 2) * -(math.log(10000.0) / d_model))
-    pe[:, 0::2] = np.sin(position * div_term)
-    pe[:, 1::2] = np.cos(position * div_term)
+    constant_10000 = flow.constant(10000, dtype=flow.float32, shape=(1, d_model), name="constant_10000")
 
-    func_config = flow.FunctionConfig()
-    func_config.default_data_type(flow.float)
+    constant_2 = flow.constant_scalar(2, dtype=flow.float32)
 
-    @flow.global_function(function_config=func_config)
-    def generate_variable(pe_input: tp.Numpy.Placeholder(shape=pe.shape, dtype=flow.float32),
-                          x_input: tp.Numpy.Placeholder(shape=(1, 100, 20), dtype=flow.float32)) -> tp.Numpy:
+    # Compute angle_rates = 1 / 10000^(2i / d_model)
 
-        zero_blob = flow.get_variable(name=name + "zero_Blob",
-                                      shape=(1, pe.shape[0], pe.shape[1]),
-                                      trainable=False,
-                                      initializer=flow.zeros_initializer(),
-                                      )
-        pe_blob = zero_blob + pe_input
-        pe_blob = flow.slice(pe_blob,
-                             begin=[None, 0, None],
-                             size=[None, x.shape[1], None],
-                             name=name+"Slice")
-        pe_blob += x_input
-        return flow.nn.dropout(pe_blob, rate=dropout)
+    angle_rates = 1 / flow.math.pow(constant_10000,
+                                    (constant_2 * flow.math.floor(i / constant_2)) / d_model_constant)
 
-    # check_point = flow.train.CheckPoint()
-    # check_point.init()
+    return pos * angle_rates
 
-    position = generate_variable(pe, x)
 
-    return position
+def positional_encoding(position, d_model, name="positional_encoding"):
+    """
+    Do positional encoding
+    :param position: The position
+    :param d_model: The hidden dimension in model
+    :return: shape like (1, position, d_model)
+    """
+    with flow.scope.namespace(name):
+        # shape = (position, 1)
+        input_pos = flow.expand_dims(flow.range(position, dtype=flow.float32, name="pos"), axis=1)
 
+        # shape = (1, d_model)
+        input_d_model = flow.expand_dims(flow.range(d_model, dtype=flow.float32, name="d_model"), axis=0)
+
+        angle_rads = get_angles(input_pos, input_d_model, d_model)
+
+        # Get a even range like (0, 2, 4, 6, ....., d_model)
+        even_range = flow.range(0, d_model, 2, dtype=flow.int32, name="even_range")
+
+        # Do the sin in even indexes
+        even_out = flow.math.sin(flow.gather(angle_rads, even_range, axis=1))
+
+        # Get a odd range like (1, 3, 5, 7, ....., d_model)
+        odd_range = flow.range(1, d_model, 2, dtype=flow.int32, name="odd_range")
+
+        # Do the cos in odd indexes
+        odd_out = flow.math.cos(flow.gather(angle_rads, odd_range, axis=1))
+
+        # Initialize Position encode constant
+        position_encode = flow.constant(0, dtype=flow.float32, shape=(d_model, position), name="pos_ende")
+
+        # Due to the scatter only support row indexes, we need to transpose
+        even_out = flow.tensor_scatter_nd_update(position_encode,
+                                                 flow.expand_dims(even_range, axis=1),
+                                                 flow.transpose(even_out, perm=[1, 0]))
+
+        odd_out = flow.tensor_scatter_nd_update(position_encode,
+                                                flow.expand_dims(odd_range, axis=1),
+                                                flow.transpose(odd_out, perm=[1, 0]))
+
+        # Add even indexes value and odd indexes value
+        out = even_out + odd_out
+
+        # Because We have transposed in even_out and odd_out, So we need to transpose back
+        out = flow.transpose(out, perm=[1, 0])
+        # Expand dims in dim=0, we get shape like (1, position, d_model)
+        out = flow.expand_dims(out, axis=0)
+
+    return out
 
 # # test
+# if __name__ == "__train__":
+#     @flow.global_function(type="train")
+#     def test_postional_encoding() -> tp.Numpy:
+#         pos = positional_encoding(50, 512)
 #
-
-# input_tensor = np.ones(shape=(1, 100, 20)).astype(np.float32)
-# out = positionalEncoder(input_tensor, 20, 0)
+#         sliced_pos = flow.slice(pos, [None, 2, None], [None, 4, None])
 #
-# import matplotlib.pyplot as plt
+#         x_var = flow.get_variable(name="x",
+#                                   dtype=flow.float32,
+#                                   initializer=flow.ones_initializer(),
+#                                   shape=(1, 50, 512))
+#         out = x_var + pos
+#         flow.optimizer.SGD(
+#             flow.optimizer.PiecewiseConstantScheduler([], [1e-3]), momentum=0
+#         ).minimize(out)
 #
-# plt.figure(figsize=(15, 5))
-# plt.plot(np.arange(100), out[0, :, 4:8])
-# plt.legend(["dim %d" % p for p in [4, 5, 6, 7]])
-# plt.show()
+#         # return pos
+#         return sliced_pos
+#
+#     out = test_postional_encoding()
+#
+#     print(out.shape)
+#     print(out)

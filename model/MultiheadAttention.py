@@ -3,7 +3,9 @@ author: zzk
 Build MultiHeadAttention Layer
 """
 
-from oneflow_transformer.model.attention import scaled_dot_product_attention
+# from oneflow_transformer.model.attention import scaled_dot_product_attention
+from attention import scaled_dot_product_attention
+
 import oneflow as flow
 import oneflow.typing as tp
 from typing import Tuple
@@ -88,7 +90,7 @@ class MultiheadAttention(object):
         return output, attention_weights
 
 
-# test
+# # test
 # if __name__ == "__main__":
 #     @flow.global_function()
 #     def multi_attention() -> Tuple[tp.Numpy, tp.Numpy]:
@@ -107,10 +109,10 @@ class MultiheadAttention(object):
 #                                   initializer=flow.zeros_initializer(),
 #                                   )
 #             out, attn = mha(x, y, z, mask=None)
-#
+
 #             return out, attn
-#
-#
+
+
 #     out, attn = multi_attention()
 #     print(out.shape)
 #     print(attn.shape)

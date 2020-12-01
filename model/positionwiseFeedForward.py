@@ -43,16 +43,17 @@ def positionwiseFeedForward(x, d_model, d_ff, name="FFN_layer"):
 
 
 # Test
-# @flow.global_function()
-# def test_FFN(x: tp.Numpy.Placeholder(shape=(1, 4), dtype=flow.float32)) -> tp.Numpy:
-#     out = positionwiseFeedForward(x, 4, 10)
-#     return out
-#
-#
-# check = flow.train.CheckPoint()
-# check.init()
-#
-#
-# x = np.array([[0, 2, 0, 5]]).astype(np.float32)
-# out = test_FFN(x)
-# print(out.shape)
+# if __name__ == "__main__": 
+#     @flow.global_function()
+#     def test_FFN(x: tp.Numpy.Placeholder(shape=(64, 50, 512), dtype=flow.float32)) -> tp.Numpy:
+#         out = positionwiseFeedForward(x, 512, 2048)
+#         return out
+
+
+#     check = flow.train.CheckPoint()
+#     check.init()
+
+
+#     x = np.random.randn(64, 50, 512).astype(np.float32)
+#     out = test_FFN(x)
+#     print(out.shape)
