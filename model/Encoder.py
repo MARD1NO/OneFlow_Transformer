@@ -5,9 +5,12 @@ Build Encoder
 import oneflow as flow
 import oneflow.typing as tp
 import numpy as np
-from oneflow_transformer.model.EncoderLayer import EncoderLayer
-from oneflow_transformer.model.embedding_layer import EmbeddingLayer
-from oneflow_transformer.model.new_positional_layer import positional_encoding
+# from oneflow_transformer.model.EncoderLayer import EncoderLayer
+from EncoderLayer import EncoderLayer
+# from oneflow_transformer.model.embedding_layer import EmbeddingLayer
+from embedding_layer import EmbeddingLayer
+# from oneflow_transformer.model.sin_positional_layer import positional_encoding
+from sin_positional_layer import positional_encoding
 
 
 class Encoder(object):
@@ -37,6 +40,7 @@ class Encoder(object):
         self.rate = rate
         self.vocab_size = input_vocab_size
         self.maximum_position_encoding = maximum_position_encoding
+        self.pos_encoding = positional_encoding(maximum_position_encoding, self.d_model, name="Encoder_pos_encoding")
 
         # Build Multi encoder layers
         self._build_multi_encoder_layer(d_model, num_heads, dff, rate)
@@ -58,7 +62,7 @@ class Encoder(object):
                                                     dff=dff,
                                                     rate=rate))
 
-    def __call__(self, x, pos_encoding, training, mask):
+    def __call__(self, x, training, mask):
         # Sequence length
         seq_len = x.shape[1]
 
@@ -67,15 +71,13 @@ class Encoder(object):
             x = EmbeddingLayer(x,
                                vocab_size=self.vocab_size,
                                embedding_size=self.d_model)
-            d_model_constant = flow.constant(self.d_model,
-                                             dtype=flow.float32,
-                                             shape=(1,))
+            d_model_constant = flow.constant_scalar(value=self.d_model, dtype=flow.float32, name="d_model_constant")
             x *= flow.math.sqrt(d_model_constant)
-            print(x.shape)
 
         # Position encoding
         with flow.scope.namespace("Encoder_Position_encoding"):
-            pos_encoding = flow.slice(pos_encoding,
+            # equal to self.pos_encoding[:, :seq_len, :]
+            pos_encoding = flow.slice(self.pos_encoding,
                                       begin=[None, 0, None],
                                       size=[None, seq_len, None])
             x += pos_encoding
@@ -83,45 +85,30 @@ class Encoder(object):
                 x = flow.nn.dropout(x,
                                     rate=self.rate)
 
-        # # Encoding
+        # Encoding
         with flow.scope.namespace("Encoder_Multi_encoder"):
             for i in range(self.num_layers):
                 with flow.scope.namespace('encoder_{}'.format(i)):
-                    x = self.enc_layers[i](x)
+                    x = self.enc_layers[i](x, training, mask)
 
         return x
 
 
-# def test(num_layers=2,
-#          d_model=512,
-#          num_heads=8,
-#          dff=2048,
-#          input_vocab_size=8500,
-#          maximum_position_encoding=10000):
-#
-#     pos = positional_encoding(maximum_position_encoding, d_model)
-#     print(pos.shape)
-#
-#     x_ = np.ones(shape=(64, 62), dtype=np.int64)
-#     print(x_.shape)
-#
-#     @flow.global_function()
-#     def testencoder(x: tp.Numpy.Placeholder(shape=(64, 62), dtype=flow.int64),
-#                     pos_encode: tp.Numpy.Placeholder(shape=pos.shape, dtype=flow.float32)) -> tp.Numpy:
-#         # pos: tp.Numpy.Placeholder(shape=pos_encode.shape, dtype=flow.float32)) -> tp.Numpy:
-#         with flow.scope.namespace("encoder"):
-#             encoder = Encoder(num_layers=num_layers,
-#                               d_model=d_model,
-#                               num_heads=num_heads,
-#                               dff=dff,
-#                               input_vocab_size=input_vocab_size,
-#                               maximum_position_encoding=maximum_position_encoding)
-#             out = encoder(x, pos_encode, training=False, mask=None)
-#
-#         return out
-#
-#     return testencoder(x_, pos)
-#
-#
-# out = test()
-# print(out.shape)
+if __name__ == "__main__": 
+    @flow.global_function()
+    def testencoder(x: tp.Numpy.Placeholder(shape=(64, 62), dtype=flow.int64)) -> tp.Numpy:
+        with flow.scope.namespace("encoder"):
+            encoder = Encoder(num_layers=2, d_model=512, num_heads=8, 
+                            dff=2048, input_vocab_size=8500,
+                            maximum_position_encoding=10000)
+            out = encoder(x, training=False, mask=None)
+
+        return out
+
+    check = flow.train.CheckPoint()
+    check.init()
+
+    x = np.random.randint(0, 50, size=64*62, dtype=np.int64).reshape(64, 62)
+
+    out = testencoder(x)
+    print("Out shape is", out.shape) # -> (64, 62, 512)

@@ -5,8 +5,10 @@ Build DecoderLayer
 import oneflow as flow
 import oneflow.typing as tp
 import numpy as np
-from oneflow_transformer.model.MultiheadAttention import MultiheadAttention
-from oneflow_transformer.model.positionwiseFeedForward import positionwiseFeedForward
+# from oneflow_transformer.model.MultiheadAttention import MultiheadAttention
+from MultiheadAttention import MultiheadAttention
+# from oneflow_transformer.model.positionwiseFeedForward import positionwiseFeedForward
+from positionwiseFeedForward import positionwiseFeedForward
 
 
 class DecoderLayer(object):
@@ -62,21 +64,21 @@ class DecoderLayer(object):
 
 
 # Test
-#
-# if __name__ == "__main__":
-#     @flow.global_function()
-#     def decoder() -> tp.Numpy:
-#         with flow.scope.namespace("multi"):
-#             decoder_layer = DecoderLayer(512, 8, 2048)
-#             x = flow.get_variable("x",
-#                                   shape=(64, 50, 512),
-#                                   initializer=flow.zeros_initializer())
-#             encoder_layer_output = flow.get_variable("encoder_layer_output",
-#                                                      shape=(64, 43, 512),
-#                                                      initializer=flow.zeros_initializer())
-#             out, _, __ = decoder_layer(x, encoder_layer_output)
-#
-#         return out
-#
-#     out = decoder()
-#     print(out.shape)
+
+if __name__ == "__main__":
+    @flow.global_function()
+    def decoder() -> tp.Numpy:
+        with flow.scope.namespace("multi"):
+            decoder_layer = DecoderLayer(512, 8, 2048)
+            x = flow.get_variable("x",
+                                  shape=(64, 50, 512),
+                                  initializer=flow.zeros_initializer())
+            encoder_layer_output = flow.get_variable("encoder_layer_output",
+                                                     shape=(64, 43, 512),
+                                                     initializer=flow.zeros_initializer())
+            out, _, __ = decoder_layer(x, encoder_layer_output)
+
+        return out
+
+    out = decoder()
+    print(out.shape)

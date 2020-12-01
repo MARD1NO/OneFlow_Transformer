@@ -5,8 +5,10 @@ Build EncoderLayer
 import oneflow as flow
 import oneflow.typing as tp
 import numpy as np
-from oneflow_transformer.model.MultiheadAttention import MultiheadAttention
-from oneflow_transformer.model.positionwiseFeedForward import positionwiseFeedForward
+# from oneflow_transformer.model.MultiheadAttention import MultiheadAttention
+from MultiheadAttention import MultiheadAttention
+# from oneflow_transformer.model.positionwiseFeedForward import positionwiseFeedForward
+from positionwiseFeedForward import positionwiseFeedForward
 
 
 class EncoderLayer(object):
@@ -48,8 +50,8 @@ class EncoderLayer(object):
 #                                   shape=(64, 43, 512),
 #                                   initializer=flow.zeros_initializer())
 #             out = encoder_layer(x)
-#
+
 #         return out
-#
+
 #     out = encoder()
 #     print(out.shape)
